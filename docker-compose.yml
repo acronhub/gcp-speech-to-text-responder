@@ -1,0 +1,17 @@
+version: '3'
+
+services: 
+    responder:
+        build: 
+            context: .
+            dockerfile: ./docker/responder/Dockerfile
+        ports: 
+            - "5000:5000"
+        environment: 
+            TZ: "Asia/Tokyo"
+            PORT: "5000"
+            GOOGLE_APPLICATION_CREDENTIALS: /apps/service-account.json
+        tty: true
+        volumes:
+            - "./apps:/apps"
+            - ./service-account.json:/apps/service-account.json

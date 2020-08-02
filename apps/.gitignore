@@ -1,0 +1,17 @@
+.DS_Store
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+instance/*
+
+data/input_file/*
+data/convert_file/*
+data/output_text/*
+data/regexp_text/*
+data/convert_progress.txt
+!.gitkeep
+
+server_werkzeug.log
+
+service-account.json
