@@ -4,6 +4,7 @@ import os
 import codecs
 import ffmpeg
 import datetime
+import subprocess
 
 from google.cloud import storage
 from google.cloud import speech_v1p1beta1 as speech
@@ -16,7 +17,7 @@ CONVERTED_FOLDER = './data/convert_file'
 OUTPUT_FOLDER = './data/output_text'
 REGEXP_FOLDER = './data/regexp_text'
 
-GCS_BUCKET_NAME = 'kuwana-city-stream'
+GCS_BUCKET_NAME = 'example-bucket'
 
 ALLOWED_EXTENSIONS = ['mp4', 'm4a', 'mp3', 'wav']
 SELECTED_HERTZ = [48000, 44100, 22100,]
@@ -46,6 +47,10 @@ async def api_response(req, resp):
         if filename == '':
             print('ファイルを選択してください')
         if allwed_file(filename):
+            try:
+                os.remove(CONVERT_PROGRESS)
+            except OSError as e:
+                print(e)
             convert_flac(filename)
             print('FLACファイルを作成しました')
     api.redirect(resp, '/')
@@ -69,7 +74,6 @@ async def api_response(req, resp):
         filename = data.get('filename')
         if filename == '':
             print('ファイルを選択してください')
-
         gcs_uri = os.path.join("gs://", GCS_BUCKET_NAME, filename)
         transcribe_gcs(gcs_uri, data.get('hertz'), data.get('channel'))
         print('文字起こししました')
@@ -86,6 +90,20 @@ async def api_response(req, resp):
             regexp_text(filename)
             print('改行しました')
     api.redirect(resp, '/')
+
+@api.route('/progress')
+async def api_response(req, resp):
+    try:
+        line = subprocess.check_output(['tail', '-1', CONVERT_PROGRESS])
+        result = re.match(rb'progress=([\w]+)', line)
+        if result is not None:
+            status = result.group(1).decode()
+            if status == 'end':
+                os.remove(CONVERT_PROGRESS)
+    except subprocess.CalledProcessError:
+        pass
+
+    resp.media = {"status": 200, "user": "a"}
 
 
 # .があるかどうかのチェックと、拡張子の確認
