@@ -26,6 +26,7 @@ SELECTED_PHRASES = []
 
 api = responder.API()
 
+convertfile_timedelta = datetime.timedelta()
 
 @api.route('/')
 async def api_response(req, resp):
@@ -93,17 +94,27 @@ async def api_response(req, resp):
 
 @api.route('/progress')
 async def api_response(req, resp):
+    remaining_time = -1
+
     try:
-        line = subprocess.check_output(['tail', '-1', CONVERT_PROGRESS])
-        result = re.match(rb'progress=([\w]+)', line)
-        if result is not None:
-            status = result.group(1).decode()
-            if status == 'end':
-                os.remove(CONVERT_PROGRESS)
+        # 変換ログを抽出
+        line = subprocess.check_output(['tail', '-9', CONVERT_PROGRESS])
+        result = re.findall(r'out_time_ms=(-?[\d]+)', line.decode('utf-8'))
+        if result is not None and result != []:
+            out_time_ms = float(result[0])
+            if out_time_ms > 0:
+                timedelta = datetime.timedelta(microseconds=out_time_ms)
+
+                # 経過割合
+                remaining_time = timedelta / convertfile_timedelta * 100
+
+                # 完了チェック
+                if remaining_time >= 100:
+                    os.remove(CONVERT_PROGRESS)
     except subprocess.CalledProcessError:
         pass
 
-    resp.media = {"status": 200, "user": "a"}
+    resp.media = {"status": 200, "time": remaining_time}
 
 
 # .があるかどうかのチェックと、拡張子の確認
@@ -119,6 +130,12 @@ def convert_flac(filename):
     today = datetime.datetime.today().strftime("%Y%m%d-%H%M%S")
     outputfilename = '{0}-{1}.flac'.format(today, outputfile)
     outputfilepath = os.path.join(CONVERTED_FOLDER, outputfilename)
+
+    probe = subprocess.check_output(['ffprobe', inputfilepath, '-hide_banner',  '-show_entries', 'format=duration'])
+    result = re.findall(r'duration=([\d.]+)', probe.decode('utf-8'))
+    if result is not None:
+        global convertfile_timedelta
+        convertfile_timedelta = datetime.timedelta(seconds=float(result[0]))
 
     # 変換＆保存
     (
