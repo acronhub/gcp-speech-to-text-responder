@@ -7,6 +7,7 @@ services:
             dockerfile: ./docker/responder/Dockerfile
         ports: 
             - "5000:5000"
+        command: ['python', 'run.py']
         environment: 
             TZ: "Asia/Tokyo"
             PORT: "5000"
